@@ -8,7 +8,6 @@
   :root{
     --bg:#f7f8f7; --card:#fff; --ink:#141614; --muted:#5b625b; --line:#e4e7e4;
     --brand:#2a751a; --hair:#ecefec;
-    --mlb:#4C78A8; --kbo:#F58518; --npb:#54A24B; --pga:#B279A2; --other:#9aa39a;
   }
   @media (prefers-color-scheme:dark){
     :root{ --bg:#0f120f; --card:#161916; --ink:#eef0ee; --muted:#a3aaa3;
@@ -17,7 +16,7 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
     font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-  .wrap{max-width:860px;margin:0 auto;padding:28px 18px 56px}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 56px}
   .eyebrow{color:var(--brand);font-weight:700;letter-spacing:.06em;
     text-transform:uppercase;font-size:.72rem}
   h1{font-size:1.55rem;margin:.25em 0 .15em}
@@ -25,17 +24,18 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
     padding:18px 18px 20px;margin-top:20px}
   .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;
-    justify-content:space-between;margin-bottom:6px}
+    justify-content:space-between;margin-bottom:10px}
+  .cluster{display:flex;gap:10px;flex-wrap:wrap}
   .seg{display:inline-flex;background:var(--hair);border-radius:9px;padding:3px;gap:2px}
   .seg button{border:0;background:transparent;color:var(--muted);font-weight:600;
-    font-size:.85rem;padding:7px 12px;border-radius:7px;cursor:pointer}
+    font-size:.85rem;padding:7px 12px;border-radius:7px;cursor:pointer;white-space:nowrap}
   .seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);
     box-shadow:0 1px 2px rgba(0,0,0,.08)}
   .dl{border:1px solid var(--line);background:var(--card);color:var(--ink);
     font-weight:650;font-size:.85rem;padding:8px 14px;border-radius:9px;cursor:pointer}
   .dl:hover{border-color:var(--brand);color:var(--brand)}
-  .chart-scroll{overflow-x:auto;margin-top:6px}
-  svg{display:block}
+  #chartWrap{width:100%}
+  svg{display:block;width:100%;height:auto}
   .yl{fill:var(--muted);font-size:11px}
   .xl{fill:var(--muted);font-size:10px}
   .grid{stroke:var(--hair)}
@@ -62,14 +62,20 @@
 
   <div class="card">
     <div class="controls">
-      <div class="seg" id="measure" role="group" aria-label="Measure">
-        <button data-m="contracts" aria-pressed="true">Contracts</button>
-        <button data-m="notional">Notional&nbsp;$&nbsp;(est.)</button>
-        <button data-m="max_notional">Max&nbsp;$&nbsp;(est.)</button>
+      <div class="cluster">
+        <div class="seg" id="measure" role="group" aria-label="Measure">
+          <button data-m="contracts" aria-pressed="true">Contracts</button>
+          <button data-m="notional">Notional&nbsp;$</button>
+          <button data-m="max_notional">Max&nbsp;$</button>
+        </div>
+        <div class="seg" id="gran" role="group" aria-label="Granularity">
+          <button data-g="daily" aria-pressed="true">Daily</button>
+          <button data-g="weekly">Weekly</button>
+        </div>
       </div>
       <button class="dl" id="download">⬇ Download CSV</button>
     </div>
-    <div class="chart-scroll"><svg id="chart" role="img" aria-label="Stacked bar of volume by sport over time"></svg></div>
+    <div id="chartWrap"><svg id="chart" role="img" aria-label="Stacked bar of volume by sport over time"></svg></div>
     <div class="legend" id="legend"></div>
     <p class="note" id="measure-note"></p>
   </div>
@@ -89,47 +95,62 @@
   var D = window.DKEX_DATA;
   var COLORS = {MLB:"#4C78A8",KBO:"#F58518",NPB:"#54A24B",PGA:"#B279A2"};
   var colorFor = function(lg){ return COLORS[lg] || "#9aa39a"; };
-  var measure = "contracts";
-  var hidden = {};                     // league -> true when toggled off
+  var measure = "contracts", gran = "daily", hidden = {};
   var tip = document.getElementById("tip");
+  var svg = document.getElementById("chart");
+  var wrap = document.getElementById("chartWrap");
 
   document.getElementById("coverage").textContent =
-    "Daily, " + D.coverage[0] + " → " + D.coverage[1] +
-    " · " + D.leagues.length + " leagues · generated " + D.generated;
+    D.coverage[0] + " → " + D.coverage[1] + " · " + D.leagues.length +
+    " leagues · generated " + D.generated;
 
-  // index rows by date for quick stacking
-  var byDate = {};
-  D.dates.forEach(function(d){ byDate[d] = {}; });
-  D.rows.forEach(function(r){ byDate[r.date][r.league] = r; });
+  // Monday of the ISO week containing a YYYY-MM-DD date.
+  function weekStart(ds){
+    var p = ds.split("-");
+    var dt = new Date(Date.UTC(+p[0], +p[1]-1, +p[2]));
+    dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay()+6)%7));
+    var m = ("0"+(dt.getUTCMonth()+1)).slice(-2), d = ("0"+dt.getUTCDate()).slice(-2);
+    return dt.getUTCFullYear()+"-"+m+"-"+d;
+  }
 
-  function val(d, lg){
-    var r = byDate[d][lg];
-    return r ? (r[measure] || 0) : 0;
+  // Aggregate rows into buckets for the chosen granularity.
+  function buildBuckets(){
+    var agg = {};
+    D.rows.forEach(function(r){
+      var key = gran==="weekly" ? weekStart(r.date) : r.date;
+      (agg[key] = agg[key] || {});
+      var a = agg[key][r.league] = agg[key][r.league] ||
+              {contracts:0, notional:0, max_notional:0};
+      a.contracts += r.contracts; a.notional += r.notional;
+      a.max_notional += r.max_notional;
+    });
+    return { agg: agg, keys: Object.keys(agg).sort() };
+  }
+  var state = buildBuckets();
+
+  function val(key, lg){
+    var a = state.agg[key] && state.agg[key][lg];
+    return a ? (a[measure] || 0) : 0;
   }
   function activeLeagues(){ return D.leagues.filter(function(l){ return !hidden[l]; }); }
+  function isDollars(){ return D.measures[measure].dollars; }
 
   function fmtCompact(v){
-    var dollars = D.measures[measure].dollars, s = dollars ? "$" : "";
-    var a = Math.abs(v);
+    var s = isDollars() ? "$" : "", a = Math.abs(v);
     if(a>=1e9) return s+(v/1e9).toFixed(1)+"B";
     if(a>=1e6) return s+(v/1e6).toFixed(1)+"M";
     if(a>=1e3) return s+(v/1e3).toFixed(1)+"K";
     return s+Math.round(v);
   }
   function fmtFull(v){
-    var dollars = D.measures[measure].dollars;
     var n = Math.round(v).toLocaleString();
-    return dollars ? "$"+n : n;
+    return isDollars() ? "$"+n : n;
   }
   function niceMax(m){
     if(m<=0) return 1;
-    var pow = Math.pow(10, Math.floor(Math.log10(m)));
-    var f = m/pow;
-    var nf = f<=1?1:f<=2?2:f<=5?5:10;
-    return nf*pow;
+    var pow = Math.pow(10, Math.floor(Math.log10(m))), f = m/pow;
+    return (f<=1?1:f<=2?2:f<=5?5:10)*pow;
   }
-
-  var svg = document.getElementById("chart");
   function el(tag, attrs){
     var e = document.createElementNS("http://www.w3.org/2000/svg", tag);
     for(var k in attrs) e.setAttribute(k, attrs[k]);
@@ -138,53 +159,50 @@
 
   function render(){
     while(svg.firstChild) svg.removeChild(svg.firstChild);
-    var dates = D.dates, legs = activeLeagues();
-    var mL=64, mR=14, mT=14, mB=46, step=34, bw=22, ph=300;
-    var iw = dates.length*step;
-    var W = mL+iw+mR, H = mT+ph+mB;
-    svg.setAttribute("width", W); svg.setAttribute("height", H);
-    svg.setAttribute("viewBox","0 0 "+W+" "+H);
+    var keys = state.keys, legs = activeLeagues();
+    var cw = Math.max(320, wrap.clientWidth || 800);
+    var mL=58, mR=14, mT=14, mB=42;
+    var H = Math.round(Math.min(430, Math.max(300, cw*0.52)));
+    var ph = H - mT - mB, iw = cw - mL - mR;
+    var step = iw / keys.length;
+    var bw = Math.max(6, Math.min(52, step*0.66));
+    svg.setAttribute("width", cw); svg.setAttribute("height", H);
+    svg.setAttribute("viewBox", "0 0 "+cw+" "+H);
 
     var yMax = 0;
-    dates.forEach(function(d){
-      var t=0; legs.forEach(function(l){ t+=val(d,l); }); if(t>yMax) yMax=t;
+    keys.forEach(function(k){
+      var t=0; legs.forEach(function(l){ t+=val(k,l); }); if(t>yMax) yMax=t;
     });
     yMax = niceMax(yMax);
     var yScale = function(v){ return ph*v/yMax; };
 
-    // y grid + labels (5 ticks)
     for(var t=0;t<=4;t++){
-      var v = yMax*t/4, y = mT+ph-yScale(v);
+      var gv = yMax*t/4, y = mT+ph-yScale(gv);
       svg.appendChild(el("line",{class:"grid",x1:mL,y1:y,x2:mL+iw,y2:y}));
       var lab = el("text",{class:"yl",x:mL-8,y:y+3,"text-anchor":"end"});
-      lab.textContent = fmtCompact(v); svg.appendChild(lab);
+      lab.textContent = fmtCompact(gv); svg.appendChild(lab);
     }
     svg.appendChild(el("line",{class:"axis",x1:mL,y1:mT,x2:mL,y2:mT+ph}));
 
-    dates.forEach(function(d,i){
-      var x = mL + i*step + (step-bw)/2;
-      var yCur = mT+ph;
+    var labelEvery = Math.ceil(keys.length/13);
+    keys.forEach(function(k,i){
+      var x = mL + i*step + (step-bw)/2, yCur = mT+ph;
       legs.forEach(function(lg){
-        var v = val(d,lg); if(v<=0) return;
+        var v = val(k,lg); if(v<=0) return;
         var h = yScale(v);
-        var rectH = Math.max(1, h-2);           // 2px surface gap between segments
-        var y = yCur - h;
-        var r = el("rect",{class:"seg-r",x:x,y:y,width:bw,height:rectH,rx:2,
-                           fill:colorFor(lg)});
-        r.setAttribute("data-tip", D.leagueNames[lg]+" · "+d+"\n"+fmtFull(v));
-        svg.appendChild(r);
-        yCur -= h;
+        var r = el("rect",{class:"seg-r",x:x,y:yCur-h,width:bw,
+                           height:Math.max(1,h-2),rx:2,fill:colorFor(lg)});
+        r.setAttribute("data-tip", D.leagueNames[lg]+" · "+
+          (gran==="weekly"?"wk "+k.slice(5):k.slice(5))+"\n"+fmtFull(v));
+        svg.appendChild(r); yCur -= h;
       });
-      // x label every 2nd day (avoid crowding)
-      if(i%2===0 || dates.length<=14){
+      if(i%labelEvery===0){
         var xl = el("text",{class:"xl",x:x+bw/2,y:mT+ph+16,"text-anchor":"middle"});
-        xl.textContent = d.slice(5);            // MM-DD
-        svg.appendChild(xl);
+        xl.textContent = k.slice(5); svg.appendChild(xl);
       }
     });
   }
 
-  // tooltip via delegation
   svg.addEventListener("mousemove", function(e){
     var t = e.target.getAttribute && e.target.getAttribute("data-tip");
     if(t){ tip.style.opacity=1; tip.style.left=e.clientX+"px"; tip.style.top=e.clientY+"px";
@@ -200,39 +218,54 @@
       b.className = hidden[l] ? "off" : "";
       b.innerHTML = '<span class="sw" style="background:'+colorFor(l)+'"></span>'+
                     (D.leagueNames[l]||l);
-      b.onclick = function(){ hidden[l]=!hidden[l]; b.className=hidden[l]?"off":"";
-                              render(); };
+      b.onclick = function(){ hidden[l]=!hidden[l]; b.className=hidden[l]?"off":""; render(); };
       lg.appendChild(b);
     });
   }
 
+  function pressGroup(id, attr, valOn){
+    Array.prototype.forEach.call(document.querySelectorAll("#"+id+" button"),
+      function(b){ b.setAttribute("aria-pressed", b.dataset[attr]===valOn); });
+  }
   function setMeasure(m){
-    measure = m;
-    Array.prototype.forEach.call(document.querySelectorAll("#measure button"),
-      function(b){ b.setAttribute("aria-pressed", b.dataset.m===m); });
+    measure = m; pressGroup("measure","m",m);
     document.getElementById("measure-note").textContent =
-      "Showing " + D.measures[m].label + (D.measures[m].dollars ?
-        " — a dollar estimate." : " (a count).");
+      "Showing " + D.measures[m].label +
+      (isDollars() ? " — a dollar estimate." : " (a count).") +
+      "  ·  " + (gran==="weekly"?"Weekly":"Daily") + " buckets.";
     render();
+  }
+  function setGran(g){
+    gran = g; pressGroup("gran","g",g); state = buildBuckets(); setMeasure(measure);
   }
   document.getElementById("measure").addEventListener("click", function(e){
     if(e.target.dataset && e.target.dataset.m) setMeasure(e.target.dataset.m);
   });
+  document.getElementById("gran").addEventListener("click", function(e){
+    if(e.target.dataset && e.target.dataset.g) setGran(e.target.dataset.g);
+  });
 
-  // CSV download — full breakdown (all measures), clean headers.
+  // CSV download reflects the current granularity; all measures included.
   document.getElementById("download").addEventListener("click", function(){
-    var head = ["date","league","contracts_traded",
+    var head = ["period","league","contracts_traded",
                 "notional_at_price_usd_est","max_notional_usd_est"];
     var lines = [head.join(",")];
-    D.rows.forEach(function(r){
-      lines.push([r.date,r.league,r.contracts,r.notional,r.max_notional].join(","));
+    state.keys.forEach(function(k){
+      D.leagues.forEach(function(l){
+        var a = state.agg[k][l]; if(!a) return;
+        lines.push([k,l,a.contracts,Math.round(a.notional*100)/100,
+                    Math.round(a.max_notional*100)/100].join(","));
+      });
     });
     var blob = new Blob([lines.join("\n")], {type:"text/csv"});
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "dkex_sports_breakdown.csv"; a.click();
+    a.download = "dkex_sports_breakdown_" + gran + ".csv"; a.click();
     URL.revokeObjectURL(a.href);
   });
+
+  var rt;
+  window.addEventListener("resize", function(){ clearTimeout(rt); rt=setTimeout(render,120); });
 
   renderLegend(); setMeasure("contracts");
 })();
