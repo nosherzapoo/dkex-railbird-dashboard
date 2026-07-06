@@ -1,0 +1,21 @@
+# --- Committed on purpose: data/raw/*.csv (public exchange reports, ~25 MB) ---
+# The raw CSVs are committed so the hosted/cloned app self-bootstraps its SQLite
+# store on first launch with no network. The (large, regenerable) DB is ignored.
+
+# Processed store + caches (rebuilt from data/raw by `python -m dkex.load`)
+data/processed/*.sqlite
+data/processed/*.sqlite-wal
+data/processed/*.sqlite-shm
+data/processed/*manifest_cache.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# OS
+.DS_Store

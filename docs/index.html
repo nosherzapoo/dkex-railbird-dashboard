@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DKEX / Railbird Exchange — Daily Market Report Explorer</title>
+<style>
+  :root{
+    --bg:#f7f8f7; --card:#ffffff; --ink:#121212; --muted:#5b625b;
+    --line:#e2e5e2; --brand:#2a751a; --brand-ink:#1f5614;
+    --mlb:#4C78A8; --kbo:#F58518; --npb:#54A24B; --pga:#B279A2;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0f120f; --card:#171a17; --ink:#eef0ee; --muted:#a3aaa3;
+           --line:#2a2f2a; --brand:#4caf35; --brand-ink:#69c552; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.55}
+  .wrap{max-width:920px;margin:0 auto;padding:32px 20px 64px}
+  header{margin-bottom:28px}
+  .eyebrow{color:var(--brand);font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;font-size:.78rem}
+  h1{font-size:2rem;line-height:1.15;margin:.3em 0 .2em}
+  h2{font-size:1.25rem;margin:2em 0 .6em;border-bottom:1px solid var(--line);
+    padding-bottom:.3em}
+  p{color:var(--ink)} .muted{color:var(--muted)}
+  .lead{font-size:1.08rem;color:var(--muted);max-width:70ch}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;margin:22px 0 6px}
+  a.btn{display:inline-block;padding:12px 20px;border-radius:10px;
+    font-weight:700;text-decoration:none;border:1px solid transparent}
+  a.primary{background:var(--brand);color:#fff}
+  a.primary:hover{background:var(--brand-ink)}
+  a.ghost{border-color:var(--line);color:var(--ink);background:var(--card)}
+  a.ghost:hover{border-color:var(--brand)}
+  .note{font-size:.85rem;color:var(--muted);margin:2px 0 0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:12px;margin:16px 0}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px}
+  .stat .n{font-size:1.5rem;font-weight:750;letter-spacing:-.01em}
+  .stat .l{font-size:.8rem;color:var(--muted);margin-top:2px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card h3{margin:.1em 0 .35em;font-size:1.02rem}
+  .card p{margin:.2em 0;font-size:.92rem;color:var(--muted)}
+  .tag{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:7px;
+    vertical-align:middle}
+  .warn{background:color-mix(in srgb,var(--brand) 8%,var(--card));
+    border:1px solid var(--line);border-left:4px solid var(--brand);
+    border-radius:8px;padding:12px 16px;margin:10px 0;font-size:.92rem}
+  ul{padding-left:1.2em} li{margin:.28em 0}
+  code{background:color-mix(in srgb,var(--ink) 8%,transparent);
+    padding:.12em .4em;border-radius:5px;font-size:.88em}
+  pre{background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;overflow-x:auto;font-size:.86rem}
+  footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);
+    color:var(--muted);font-size:.85rem}
+  a{color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">Railbird Exchange · DKEX prediction markets</div>
+  <h1>Daily Market Report Explorer</h1>
+  <p class="lead">A local, reproducible pipeline + interactive dashboard over
+  Railbird Exchange's <strong>Daily Market</strong>, <strong>Daily Settlement</strong>,
+  and <strong>Time&nbsp;&amp;&nbsp;Sales</strong> reports — the only granular,
+  verifiable read on activity at the CFTC-regulated venue DraftKings' DKEX markets
+  run on.</p>
+
+  <div class="cta">
+    <!-- After deploying on Streamlit Cloud, replace STREAMLIT_APP_URL below. -->
+    <a class="btn primary" href="STREAMLIT_APP_URL">▶ Launch the live dashboard</a>
+    <a class="btn ghost" href="https://github.com/nosherzapoo/dkex-railbird-dashboard">View source on GitHub</a>
+  </div>
+  <p class="note">The live dashboard runs on Streamlit Community Cloud (free).
+  Not deployed yet? See <a href="https://github.com/nosherzapoo/dkex-railbird-dashboard/blob/main/DEPLOY.md">DEPLOY.md</a>
+  — then paste the app URL into this page's button.</p>
+</header>
+
+<section>
+  <h2>Snapshot (bundled sample data)</h2>
+  <div class="grid">
+    <div class="stat"><div class="n">3</div><div class="l">report families ingested</div></div>
+    <div class="stat"><div class="n">25</div><div class="l">days · 2026-06-11 → 07-05</div></div>
+    <div class="stat"><div class="n">251,776</div><div class="l">daily-market contract-rows</div></div>
+    <div class="stat"><div class="n">20,752</div><div class="l">settlement rows</div></div>
+    <div class="stat"><div class="n">7,661</div><div class="l">individual trades (tape)</div></div>
+    <div class="stat"><div class="n">52 / 52</div><div class="l">team codes verified</div></div>
+  </div>
+  <p class="muted">The three reports reconcile exactly: Time&nbsp;&amp;&nbsp;Sales
+  quantities sum to the Daily Market trade volume, and settlement rows equal the
+  <em>Settled</em> contract count.</p>
+</section>
+
+<section>
+  <h2>What it does</h2>
+  <div class="cards">
+    <div class="card">
+      <h3>Daily Market</h3>
+      <p>Per-contract end-of-day snapshot: listed markets, open interest, daily
+      volume, high/low. Breadth (listed vs. traded), mix by sport / market / period.</p>
+    </div>
+    <div class="card">
+      <h3>Daily Settlement</h3>
+      <p>How each contract resolved — $1 (YES) / $0 (NO) / $0.50 (push). Also the
+      source of <strong>verified</strong> team/player names (Railbird's own labels).</p>
+    </div>
+    <div class="card">
+      <h3>Time &amp; Sales</h3>
+      <p>The trade tape: every execution with its <strong>intraday price</strong>
+      (= implied probability), timing and size. VWAP, price paths, activity by hour.</p>
+    </div>
+  </div>
+  <p class="muted" style="margin-top:14px">
+    <span class="tag" style="background:var(--mlb)"></span>MLB
+    <span class="tag" style="background:var(--kbo);margin-left:14px"></span>KBO
+    <span class="tag" style="background:var(--npb);margin-left:14px"></span>NPB
+    <span class="tag" style="background:var(--pga);margin-left:14px"></span>PGA
+    — new leagues (soccer / NFL / NBA) load automatically and are flagged by the
+    built-in new-sport detector.
+  </p>
+</section>
+
+<section>
+  <h2>Read the numbers correctly</h2>
+  <div class="warn"><strong>Contracts ≠ dollars.</strong> Trade volume counts binary
+  contracts that settle at $1 or $0. Dollar figures are <strong>estimates</strong>,
+  always labeled: <em>Notional @ price</em> = Σ(volume × last price); <em>Max
+  notional</em> = Σ(volume × $1) ceiling.</div>
+  <ul>
+    <li><strong>Verified names:</strong> team/player names come from the settlement
+      report where available, else a heuristic fallback, else the raw code.</li>
+    <li><strong>“Distinct events” is approximate</strong> — the event-id token can
+      differ across market types for one real-world game.</li>
+    <li><strong>Railbird ≠ all of DKEX</strong> — these reports cover only the
+      regulated-exchange layer, not DraftKings' full consumer / market-making flow.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Run it locally</h2>
+  <pre>git clone https://github.com/nosherzapoo/dkex-railbird-dashboard.git
+cd dkex-railbird-dashboard
+python3 -m venv .venv &amp;&amp; source .venv/bin/activate
+pip install -r requirements.txt
+streamlit run app/dashboard.py   # builds its database from bundled CSVs on first run</pre>
+  <p class="muted">To refresh data: <code>python -m dkex.fetch</code> then
+  <code>python -m dkex.load</code>.</p>
+</section>
+
+<footer>
+  Data © Railbird Exchange (public Daily Market / Settlement / Time&nbsp;&amp;&nbsp;Sales
+  reports). This is an independent analytics tool, not affiliated with Railbird or
+  DraftKings. Dollar figures shown in the app are clearly-labeled estimates.
+</footer>
+</div>
+</body>
+</html>

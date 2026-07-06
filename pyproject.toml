@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dkex"
+version = "0.1.0"
+description = "Ingest & analyze Railbird Exchange (DKEX) Daily Market Reports"
+requires-python = ">=3.10"
+dependencies = ["streamlit", "pandas", "plotly"]
+
+[project.scripts]
+dkex-fetch = "dkex.fetch:main"
+dkex-load = "dkex.load:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

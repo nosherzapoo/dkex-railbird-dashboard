@@ -1,0 +1,10 @@
+# Streamlit config used both locally and on Streamlit Community Cloud.
+[theme]
+base = "light"
+primaryColor = "#2a751a"           # Railbird green
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
