@@ -26,14 +26,24 @@ commit the new files in `data/raw/`, and push — Streamlit Cloud redeploys and 
 app rebuilds its store on next launch. (Or wire the fetcher into a scheduled
 GitHub Action — see the nice-to-haves in the README.)
 
-## 2. Landing page — GitHub Pages
+## 2. GitHub Pages — interactive "volume by sport" (no server needed)
 
-`docs/index.html` is a static overview page with the project summary, caveats, and
-a **"Launch the live dashboard"** button. After you have the Streamlit URL from
-step 1, put it in `docs/index.html` (search for `STREAMLIT_APP_URL`) and push;
-Pages will serve it at `https://nosherzapoo.github.io/<repo>/`.
+`docs/index.html` is a **self-contained, dependency-free** page: a stacked bar of
+trade volume by sport over time, a measure toggle (contracts / notional $ / max $),
+clickable legend, and a **Download CSV** button. It runs entirely in the browser
+on GitHub Pages — served at `https://nosherzapoo.github.io/<repo>/`.
 
-Pages is configured to serve the `/docs` folder on `main`.
+Its data lives in `docs/data.js` (a pre-aggregated `window.DKEX_DATA`) plus a plain
+`docs/dkex_sports_breakdown.csv`. **Regenerate both** whenever the store changes:
+
+```bash
+PYTHONPATH=src python scripts/build_site_data.py   # reads data/processed/dkex.sqlite
+git add docs/data.js docs/dkex_sports_breakdown.csv && git commit -m "refresh site data" && git push
+```
+
+Pages is configured to serve the `/docs` folder on `main`. (The full multi-tab
+Streamlit dashboard from step 1 is the deeper tool; this page is the quick,
+always-on public view.)
 
 ## 3. Run locally (no hosting)
 
