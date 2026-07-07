@@ -73,8 +73,12 @@
           <button data-g="weekly">Weekly</button>
         </div>
       </div>
-      <button class="dl" id="download">⬇ Download CSV</button>
+      <div class="cluster">
+        <button class="dl" id="refresh" title="Re-pull the latest published data">↻ Refresh</button>
+        <button class="dl" id="download">⬇ Download pivot CSV</button>
+      </div>
     </div>
+    <div class="note" id="status" style="min-height:1.1em;margin:0 0 8px"></div>
     <div id="chartWrap"><svg id="chart" role="img" aria-label="Stacked bar of volume by sport over time"></svg></div>
     <div class="legend" id="legend"></div>
     <p class="note" id="measure-note"></p>
@@ -100,9 +104,20 @@
   var svg = document.getElementById("chart");
   var wrap = document.getElementById("chartWrap");
 
-  document.getElementById("coverage").textContent =
-    D.coverage[0] + " → " + D.coverage[1] + " · " + D.leagues.length +
-    " leagues · generated " + D.generated;
+  function setCoverage(){
+    document.getElementById("coverage").textContent =
+      D.coverage[0] + " → " + D.coverage[1] + " · " + D.leagues.length +
+      " leagues · data generated " + D.generated;
+  }
+  setCoverage();
+
+  var statusEl = document.getElementById("status");
+  var statusTimer;
+  function flash(msg){
+    statusEl.textContent = msg; statusEl.style.opacity = 1;
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(function(){ statusEl.style.opacity = 0.55; }, 4000);
+  }
 
   // Monday of the ISO week containing a YYYY-MM-DD date.
   function weekStart(ds){
@@ -245,23 +260,50 @@
     if(e.target.dataset && e.target.dataset.g) setGran(e.target.dataset.g);
   });
 
-  // CSV download reflects the current granularity; all measures included.
-  document.getElementById("download").addEventListener("click", function(){
-    var head = ["period","league","contracts_traded",
-                "notional_at_price_usd_est","max_notional_usd_est"];
+  // Pivot CSV: rows = period (day or week), columns = sports, values = the
+  // CURRENTLY SELECTED measure, plus a Total column. "Based on what was chosen."
+  function pivotCSV(){
+    var rnd = function(v){ return isDollars() ? Math.round(v*100)/100 : Math.round(v); };
+    var head = [gran === "weekly" ? "week_start" : "date"]
+                 .concat(D.leagues).concat(["Total"]);
     var lines = [head.join(",")];
     state.keys.forEach(function(k){
-      D.leagues.forEach(function(l){
-        var a = state.agg[k][l]; if(!a) return;
-        lines.push([k,l,a.contracts,Math.round(a.notional*100)/100,
-                    Math.round(a.max_notional*100)/100].join(","));
-      });
+      var row = [k], tot = 0;
+      D.leagues.forEach(function(l){ var v = val(k, l); tot += v; row.push(rnd(v)); });
+      row.push(rnd(tot));
+      lines.push(row.join(","));
     });
-    var blob = new Blob([lines.join("\n")], {type:"text/csv"});
+    return lines.join("\n");
+  }
+  document.getElementById("download").addEventListener("click", function(){
+    var blob = new Blob([pivotCSV()], {type:"text/csv"});
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "dkex_sports_breakdown_" + gran + ".csv"; a.click();
+    a.download = "dkex_pivot_" + measure + "_" + gran + ".csv"; a.click();
     URL.revokeObjectURL(a.href);
+  });
+
+  // Refresh: re-pull the published data.js (same-origin, cache-busted) and
+  // re-render. The data itself is kept current by a scheduled GitHub Action
+  // (Railbird blocks direct browser fetches via CORS, so refresh-from-source
+  // must happen server-side; this button reflects the latest published build).
+  var refreshBtn = document.getElementById("refresh");
+  refreshBtn.addEventListener("click", function(){
+    var prevGen = D.generated, label = refreshBtn.textContent;
+    refreshBtn.disabled = true; refreshBtn.textContent = "Refreshing…";
+    fetch("data.js?ts=" + Date.now(), {cache:"no-store"})
+      .then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+      .then(function(txt){
+        eval(txt);                        // reassigns window.DKEX_DATA
+        D = window.DKEX_DATA;
+        hidden = {}; state = buildBuckets();
+        setCoverage(); renderLegend(); render();
+        flash(D.generated !== prevGen
+          ? "✓ Updated — new data generated " + D.generated
+          : "✓ Already up to date (generated " + D.generated + ")");
+      })
+      .catch(function(e){ flash("⚠ Refresh failed: " + e.message); })
+      .then(function(){ refreshBtn.disabled = false; refreshBtn.textContent = label; });
   });
 
   var rt;
